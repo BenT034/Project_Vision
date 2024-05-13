@@ -26,7 +26,7 @@ last_avg_m_pos = 1.04
 last_avg_b_pos = 205
 
 
-
+# Geeft het kruispunt van 2 lijnen terug
 def intersection_point(line1, line2):
     # Uitpakken van de vergelijking van de eerste lijn
     m1 = line1[0]
@@ -43,7 +43,7 @@ def intersection_point(line1, line2):
 
     return x_intersect, y_intersect
 
-
+# Geeft de richtingscoeficient en b van de lijn terug neemt als input 2 punten
 def line_equation(coordinates):
     # Uitpakken van de coördinaten van de punten
     y1 = coordinates[0]
@@ -60,6 +60,8 @@ def line_equation(coordinates):
         b = - y1 + (m * x1)
     return m, b
 
+# Geeft het gemiddelde van alle lijnen terug, worden verdeeld in lijnen met positief RC en negatieve RC
+# Ene is de linker lijn en ander is de rechter lijn
 def find_average_line(lines):
     global last_avg_m_neg,last_avg_b_neg, last_avg_m_pos, last_avg_b_pos
     positive_slope_lines = []
@@ -101,6 +103,7 @@ def find_average_line(lines):
 
     return (avg_m_pos, avg_b_pos), (avg_m_neg, avg_b_neg)
 
+# Stuurt data naar de Zumo
 def send_data(var):
     toZumo.value(1) #Ask zumo
 
@@ -121,25 +124,31 @@ def send_data(var):
     toZumo.value(1)  # Stop sending data
     #print("Data sent")
 
+# Infinity loop
 while(True):
     clock.tick()
     output = 0
     equations = []
     img = sensor.snapshot()
     img.to_grayscale()
-#   thresholds = [(90, 255)]
-#   edges = img_gray.binary(thresholds,copy=True)
+
+    # Median filter to filter out noise (fake edges)
     img.median(1)
     img.find_edges(image.EDGE_CANNY)
+
+    # Make the image smaller so the robot only sees whats close to him
     img.crop(roi = (0, 0, 320, 60), copy=False)
 
     lines = img.find_lines(threshold = 4000, theta_margin=20, rho_margin=20)
 
-#    for line in lines:
-#        img.draw_line(line.line(), color=(255, 0, 0))  # Draw lines on image
+    # Draw lines onto framebuffer
+    for line in lines:
+        img.draw_line(line.line(), color=(255, 0, 0))  # Draw lines on image
 
+    # Find average of multiple lines found
     avg_line_pos, avg_line_neg = find_average_line(lines)
 
+    # Find point the robot is riding towards, x coordinate of intersecting lines
     intersect_point_pos = intersection_point(avg_line_pos, avg_line_neg)
 
 #    # Print de snijpunten
@@ -153,23 +162,27 @@ while(True):
         x2 = line[2]
         y2 = line[3]
 
-        if x1 != x2 and y1 != y2:  # Controleer of er een verschil is tussen x1 en x2 en tussen y1 en y2
+        # Controleer of er een verschil is tussen x1 en x2 en tussen y1 en y2 anders krijg je een deling door 0 en crasht het programma
+        if x1 != x2 and y1 != y2:
             m, b = line_equation(line)
             equations.append((m, b))
+
      #Print de lijst met vergelijkingen van de lijnen
 #    print("Vergelijkingen van de lijnen:")
 #    for equation in equations:
 #        print("y = {}x + {}".format(equation[0], equation[1]))
 
-#    #Print de vergelijkingen van de gemiddelde lijnend
+    # Print de vergelijkingen van de gemiddelde lijnend
     print("Vergelijking van de lijn met positieve helling:")
     print("y = {}x + {}".format(avg_line_pos[0], avg_line_pos[1]))
 
     print("Vergelijking van de lijn met negatieve helling:")
     print("y = {}x + {}".format(avg_line_neg[0], avg_line_neg[1]))
 
-
+    # Stuur x-coordinaat van snijpunt naar de zumo met een offset van 100 anders gaat de waarde onder de 0, dat kan de zumo niet aan
     send_data(intersect_point_pos[0]+ 100)
    # print(intersect_point_pos[1])
 #    print(clock.fps())
+
+    # Zet image op frame buffer
     img.draw_image(img,0, 0)

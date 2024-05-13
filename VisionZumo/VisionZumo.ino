@@ -10,34 +10,30 @@ float I = 0;
 Zumo32U4Motors motors;
 Zumo32U4OLED display;
 bool NiclaWantsToSend = false;
-
+bool sended = 0;
+bool pidDriveBool = 0;
 int time =0;
 int time_last    =0;
+
+// Functie voor het rijden met PID controller
 void pidDrive()
 {
  
   time = millis() - time_last;
- 
-  display.clear();
-  display.print(val);
   int error = 188 - val; // calculate error
   float P= 0.50*error; // error correction for P 0.31 GOED
   I = I + ( time * error * 0.000); //0.00013 GOED
   float D= (0*((error-last_error))/time); // calculate error correction for K 15 GOED
-//   Serial.print("P: ");
-//   Serial.print(P);
-//   Serial.print(" D: ");
-//   Serial.print(D);
-  int speed = 60; // set motorspeed
+  int speed = 55; // set motorspeed
   motors.setSpeeds(speed+(P+I+D),speed-(P+I+D));
- last_error = error;
- time_last = millis();
+  last_error = error;
+  time_last = millis();
  
 }
  
 
 void readByte();
-// void writeByte();
+
 void setup()
 {
   pinMode(toNicla, OUTPUT);
@@ -46,38 +42,58 @@ void setup()
   display.clear();
   display.print(F("Press A"));
   display.clear();
+  
+  //Voor het kalibreren van de lijnen, maar werkt nog niet
   motors.setSpeeds(100,-100);
   delay(300);
   motors.setSpeeds(0,0);
+  do
+  sended = loopFunction();
+  while (!sended);
+  sended = 0;
   delay(1000);
   motors.setSpeeds(-100,100);
   delay(600);
   motors.setSpeeds(0,0);
+  do
+  sended = loopFunction();
+  while (!sended);
+  sended = 0;
   delay(1000);
   motors.setSpeeds(100,-100);
   delay(300);
   motors.setSpeeds(0,0);
+  do
+  sended = loopFunction();
+  while (!sended);
+  sended = 0;
+  pidDriveBool = 1;
 }
 
 //Reading 0 means a 1 from the nicla
 void loop() {
-  static int count = 0;
+  loopFunction();
+}
+
+bool loopFunction()
+{
+  NiclaWantsToSend = false;
   if(digitalRead(fromNicla)==0 && NiclaWantsToSend != true) //If Nicla wants to send data
   {
   //  Serial.println("Nicla wants to send");
     delay(100);
     NiclaWantsToSend = true;
   }
-  if(NiclaWantsToSend)
+  if(NiclaWantsToSend) //bool so that the robot won't drive during setup
   {
     readByte();
     digitalWrite(toNicla, LOW);
-    if(count > 10)
-    pidDrive();
-    NiclaWantsToSend = false;
+    if (pidDriveBool)
+      pidDrive();
   }
-  count++;
+  return NiclaWantsToSend;
 }
+
 void readByte()
 {
   digitalWrite(toNicla, HIGH); // Acknowledge Nicla
@@ -107,6 +123,8 @@ void readByte()
 
   Serial.print("Received: ");
   Serial.println(val);
+  display.clear();
+  display.print(val);
 }
 
  
