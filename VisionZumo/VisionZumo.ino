@@ -14,54 +14,30 @@ bool sended = 0;
 bool pidDriveBool = 0;
 int time =0;
 int time_last    =0;
+
 int baseSpeed = 60; // set base motor speed
+
 // Functie voor het rijden met PID controller
 void pidDrive()
 {
   time = millis() - time_last;
   int error = 210 - val; // calculate error
+
   float P = 0.25 * error; // error correction for P 0.31 GOED
   I = I + (time * error * 0.000); // 0.00013 GOED
   float D = (20 * ((error - last_error)) / time); // calculate error correction for K 15 GOED
-  
+
   int pidCorrection = (P + I + D);
   int motor1, motor2;
   motor1 = baseSpeed + pidCorrection;
   motor2 = baseSpeed - pidCorrection;
-  // Check if one of the speeds is below 28
-//  Serial.print("voor ");
-//  Serial.print(motor1);
-//  Serial.println(motor2);
-//  if (motor2 < 30) {
-//    // If so, calculate the difference between 28 and the current speed
-//    int speedDiff = 30 - motor2;
-//    // Add the difference to both speeds
-//    motor1 += speedDiff;
-//    motor2 = 30;
-//  }
-//  Serial.print("na1 ");
-//  Serial.print(motor1);
-//  Serial.println(motor2);
-//  if(motor1 < 30)
-//  {
-//     // If so, calculate the difference between 28 and the current speed
-//    int speedDiff = 30 - (motor1);
-//    // Add the difference to both speeds
-//    motor2 += speedDiff;
-//    motor1 = 30;
-//  }
-//  Serial.print("na2 ");
-//  Serial.print(motor1);
-//  Serial.println(motor2);
   motors.setSpeeds(motor1, motor2);
-  //display.clear();
-//  display.print(motor1);
-//  display.print(motor2);
-//  display.print(pidCorrection);
+
   last_error = error;
   time_last = millis();
 }
 
+ 
 void readByte();
 void setup()
 {
@@ -71,30 +47,6 @@ void setup()
   display.clear();
   display.print(F("Press A"));
   display.clear();
-//  //Voor het kalibreren van de lijnen, maar werkt nog niet
-//  motors.setSpeeds(100,-100);
-//  delay(300);
-//  motors.setSpeeds(0,0);
-//  do
-//  sended = loopFunction();
-//  while (!sended);
-//  sended = 0;
-//  delay(1000);
-//  motors.setSpeeds(-100,100);
-//  delay(600);
-//  motors.setSpeeds(0,0);
-//  do
-//  sended = loopFunction();
-//  while (!sended);
-//  sended = 0;
-//  delay(1000);
-//  motors.setSpeeds(100,-100);
-//  delay(300);
-//  motors.setSpeeds(0,0);
-//  do
-//  sended = loopFunction();
-//  while (!sended);
-//  sended = 0;
   pidDriveBool = 1;
   int counter = 0;
 }
