@@ -12,7 +12,9 @@ sensor.set_vflip(True)
 clock = time.clock()
 
 output = 0
+output2 = 0
 lastoutput = 0
+lost = 0
 
 period = 5000
 
@@ -77,6 +79,7 @@ def send_data(var, pidbool):
     toZumo.value(1)  # Stop sending data
 
 def edge(img):
+    lost = 0
     bottom_row_pixels = []
     middle_row_pixels = []
     global output
@@ -84,7 +87,7 @@ def edge(img):
 
     # Itereer door elke pixel in de onderste rij en sla de pixelwaarden op
     for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 30)  # 230
+        pixel_val = img.get_pixel(x, 127)  # 230
         if pixel_val == 1:
             bottom_row_pixels.append(x)
 
@@ -117,16 +120,23 @@ def edge(img):
         else:
             output = (bottom_row_pixels[max_difference_index] + bottom_row_pixels[max_difference_index + 1]) / 2
     else:
-        output = lastoutput
+
+        if len(middle_row_pixels) == 0:
+            lost = 1
+        else:
+            output = lastoutput
 
     print("output:", output)
-    send_data(output, 0)
+    if lost:
+        send_data(5, 1)
+    else:
+        send_data(output,0)
     lastoutput = output
 
 while True:
     clock.tick()
     img = sensor.snapshot()
-    img.crop(roi=(0, 200, 480, 240), copy=False)
+    img.crop(roi=(0, 190, 480, 240), copy=False)
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
