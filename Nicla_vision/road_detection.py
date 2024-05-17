@@ -1,4 +1,4 @@
-import sensor, image, time
+import sensor, image, time, tf, math, uos, gc, os
 from machine import Pin
 from machine import LED
 
