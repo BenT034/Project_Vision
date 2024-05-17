@@ -37,7 +37,7 @@ void pidDrive()
   time_last = millis();
 }
 
- 
+
 void readByte();
 void setup()
 {
@@ -48,7 +48,7 @@ void setup()
   display.print(F("Press A"));
   display.clear();
   pidDriveBool = 1;
-  
+
 }
 //Reading 0 means a 1 from the nicla
 void loop() {
@@ -85,8 +85,8 @@ bool loopFunction()
           delay(500);
           break;
         case 2:                       //if the sign of dead end is seen the robot will turn around
-          motors.setSpeeds(-50,50);
-          delay(400);                 //fine tuning needed for turn around delay
+          motors.setSpeeds(-60,60);
+          delay(1500);                 //fine tuning needed for turn around delay
           motors.setSpeeds(0,0);
           break;
         case 3:                       //if the robot sees it is on a priority road it will speed up
@@ -114,6 +114,13 @@ bool loopFunction()
           }
           motors.setSpeeds(0,0);      //the robot stops for half a second and then it will continue driving normally
           delay(500);
+          break;
+        case 5:                       //the robot sees a 90 degree turn or a T-junction so it will turn to the right
+          motors.setSpeeds(60,60);
+          delay(500);
+          motors.setSpeeds(60,-60);
+          delay(1700);
+          motors.setSpeeds(0,0);
       }
     }
   }
@@ -160,3 +167,4 @@ void readByte()
   display.print(val);
   display.print(pidDriveBool);
 }
+ 
