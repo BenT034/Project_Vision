@@ -1,19 +1,20 @@
 # Untitled - By: bentu - Mon May 6 2024
 
-import sensor, image, time
 from machine import Pin
 from machine import LED
-
+import sensor, image, time, os, tf, math, uos, gc
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA)
-#sensor.set_windowing((320, 240))
+sensor.set_framesize(sensor.HVGA)
+sensor.set_windowing((480, 200))
 #sensor.set_vflip(True)
-#sensor.set_hmirror(True)
+sensor.set_hmirror(True)
 sensor.skip_frames(time = 2000)
 lastoutput = 0
 clock = time.clock()
-
+net = None
+labels = None
+min_confidence = 0.8
 led = LED("LED_BLUE")
 
 fromZumo = Pin("PA10", Pin.IN)
@@ -24,7 +25,6 @@ last_avg_m_neg = -0.974359
 last_avg_b_neg = 114
 last_avg_m_pos = 1.04
 last_avg_b_pos = 205
-
 
 # Geeft het kruispunt van 2 lijnen terug
 def intersection_point(line1, line2):
@@ -54,10 +54,11 @@ def line_equation(coordinates):
     # Bereken de helling
     m = (y2 - y1) / (x2 - x1)
     # Bereken de y-intercept
-    if m < 0:  # Negatieve helling
-        b = y1 + m * x1
-    else:  # Positieve helling
-        b = - y1 + (m * x1)
+#    if m < 0:  # Negatieve helling
+#        b = y1 + m * x1
+#    else:  # Positieve helling
+#        b = - y1 + (m * x1)
+    b =  y1 - (m * x1)
     return m, b
 
 # Geeft het gemiddelde van alle lijnen terug, worden verdeeld in lijnen met positief RC en negatieve RC
@@ -85,16 +86,16 @@ def find_average_line(lines):
         avg_b_pos = sum(line_equation(line)[1] for line in positive_slope_lines) / len(positive_slope_lines)
     else:
         # Als er geen positieve hellingen zijn, maak een lijn met een zeer hoge positieve helling
-        avg_m_pos = last_avg_m_pos
-        avg_b_pos = last_avg_b_pos
+        avg_m_pos = 10000
+        avg_b_pos = -3200000
 
     if negative_slope_lines:
         avg_m_neg = sum(line_equation(line)[0] for line in negative_slope_lines) / len(negative_slope_lines)
         avg_b_neg = sum(line_equation(line)[1] for line in negative_slope_lines) / len(negative_slope_lines)
     else:
         # Als er geen negatieve hellingen zijn, maak een lijn met een zeer hoge negatieve helling
-        avg_m_neg = last_avg_m_neg
-        avg_b_neg = last_avg_b_neg
+        avg_m_neg =  -100000
+        avg_b_neg = 0
 
     last_avg_m_neg   = avg_m_neg
     last_avg_b_neg = avg_b_neg
@@ -124,12 +125,47 @@ def send_data(var):
     toZumo.value(1)  # Stop sending data
     #print("Data sent")
 
+try:
+    # Load built in model
+    labels, net = tf.load_builtin_model('trained')
+except Exception as e:
+    raise Exception(e)
+
+colors = [ # Add more colors if you are detecting more than 7 types of classes at once.
+    (255,   0,   0),
+    (  0, 255,   0),
+    (255, 255,   0),
+    (  0,   0, 255),
+    (255,   0, 255),
+    (  0, 255, 255),
+    (255, 255, 255),
+]
+
+# Bereken x-coördinaat op basis van y-coördinaat en lijnvergelijking
+def bereken_x_from_line(y, line):
+    m = line[0]  # Steilheid
+    b = line[1]  # y-afsnijpunt
+    x = (y - b) / m
+    return x
+
 # Infinity loop
 while(True):
     clock.tick()
     output = 0
     equations = []
     img = sensor.snapshot()
+#    for i, detection_list in enumerate(net.detect(img, thresholds=[(math.ceil(min_confidence * 255), 255)])):
+#        if (i == 0): continue # background class
+#        if (len(detection_list) == 0): continue # no detections for this class?
+    
+#        print("********** %s **********" % labels[i])
+#        for d in detection_list:
+#            [x, y, w, h] = d.rect()
+#            center_x = math.floor(x + (w / 2))
+#            center_y = math.floor(y + (h / 2))
+#            print('x %d\ty %d' % (center_x, center_y))
+#            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
+         
     img.to_grayscale()
 
     # Median filter to filter out noise (fake edges)
@@ -137,9 +173,9 @@ while(True):
     img.find_edges(image.EDGE_CANNY)
 
     # Make the image smaller so the robot only sees whats close to him
-    img.crop(roi = (0, 0, 320, 60), copy=False)
+    img.crop(roi = (0, 0, 480, 60), copy=False)
 
-    lines = img.find_lines(threshold = 4000, theta_margin=20, rho_margin=20)
+    lines = img.find_lines(threshold = 3000, theta_margin=20, rho_margin=20)
 
     # Draw lines onto framebuffer
     for line in lines:
@@ -150,7 +186,8 @@ while(True):
 
     # Find point the robot is riding towards, x coordinate of intersecting lines
     intersect_point_pos = intersection_point(avg_line_pos, avg_line_neg)
-
+    
+    #output = (bereken_x_from_line(20,avg_line_pos) + bereken_x_from_line(20,avg_line_neg)) / 2
 #    # Print de snijpunten
 #    print("Snijpunt van de gemiddelde lijnen:")
 #    print("x =", intersect_point_pos[0])
@@ -179,10 +216,11 @@ while(True):
     print("Vergelijking van de lijn met negatieve helling:")
     print("y = {}x + {}".format(avg_line_neg[0], avg_line_neg[1]))
 
+    
     # Stuur x-coordinaat van snijpunt naar de zumo met een offset van 100 anders gaat de waarde onder de 0, dat kan de zumo niet aan
-    send_data(intersect_point_pos[0]+ 100)
-   # print(intersect_point_pos[1])
-#    print(clock.fps())
+    send_data(intersect_point_pos[0])
+    print(intersect_point_pos[0])
+    print(clock.fps())
 
     # Zet image op frame buffer
     img.draw_image(img,0, 0)
