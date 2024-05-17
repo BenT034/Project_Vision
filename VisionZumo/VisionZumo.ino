@@ -18,20 +18,22 @@ int time_last    =0;
 // Functie voor het rijden met PID controller
 void pidDrive()
 {
- 
   time = millis() - time_last;
-  int error = 188 - val; // calculate error
-  float P= 0.50*error; // error correction for P 0.31 GOED
-  I = I + ( time * error * 0.000); //0.00013 GOED
-  float D= (0*((error-last_error))/time); // calculate error correction for K 15 GOED
-  int speed = 55; // set motorspeed
-  motors.setSpeeds(speed+(P+I+D),speed-(P+I+D));
+  int error = 210 - val; // calculate error
+  float P = 0.25 * error; 
+  I = I + (time * error * 0.000); // not used at this moment
+  float D = (20 * ((error - last_error)) / time); // calculate error correction for K 20 GOED
+  int baseSpeed = 60; // set base motor speed
+  int pidCorrection = (P + I + D);
+  int motor1, motor2;
+  motor1 = baseSpeed + pidCorrection;
+  motor2 = baseSpeed - pidCorrection;
+  motors.setSpeeds(motor1, motor2);
   last_error = error;
   time_last = millis();
- 
 }
- 
 
+ 
 void readByte();
 
 void setup()
@@ -42,31 +44,6 @@ void setup()
   display.clear();
   display.print(F("Press A"));
   display.clear();
-  
-  //Voor het kalibreren van de lijnen, maar werkt nog niet
-  motors.setSpeeds(100,-100);
-  delay(300);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
-  delay(1000);
-  motors.setSpeeds(-100,100);
-  delay(600);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
-  delay(1000);
-  motors.setSpeeds(100,-100);
-  delay(300);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
   pidDriveBool = 1;
 }
 
@@ -82,6 +59,7 @@ bool loopFunction()
   {
   //  Serial.println("Nicla wants to send");
     delay(100);
+    Serial.print("Nicla wants to send");
     NiclaWantsToSend = true;
   }
   if(NiclaWantsToSend) //bool so that the robot won't drive during setup
@@ -96,12 +74,16 @@ bool loopFunction()
 
 void readByte()
 {
+  Serial.print("Reading byte");
   digitalWrite(toNicla, HIGH); // Acknowledge Nicla
   delay(5); // Wait for stabilization
   
   // Read a byte
   val = 0;
-  while (digitalRead(fromNicla) == LOW); // Wait for start bit
+  while (digitalRead(fromNicla) == LOW)
+  {
+   Serial.print("waiting for nicla");          ; // Wait for start bit
+  }
 
   delay(5 * 1.4); // Wait for the middle of the start bit
   digitalWrite(toNicla, LOW);
@@ -121,8 +103,8 @@ void readByte()
 //    val = ((val | (1 << 15)) & ~(1 << 8));
 //  }
 
-  Serial.print("Received: ");
-  Serial.println(val);
+  //Serial.print("Received: ");
+  //Serial.println(val);
   display.clear();
   display.print(val);
 }
