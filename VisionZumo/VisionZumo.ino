@@ -14,7 +14,7 @@ bool sended = 0;
 bool pidDriveBool = 0;
 int time =0;
 int time_last    =0;
-
+int counter = 0;
 int baseSpeed = 60; // set base motor speed
 
 // Functie voor het rijden met PID controller
@@ -48,7 +48,7 @@ void setup()
   display.print(F("Press A"));
   display.clear();
   pidDriveBool = 1;
-  int counter = 0;
+  
 }
 //Reading 0 means a 1 from the nicla
 void loop() {
@@ -158,4 +158,5 @@ void readByte()
   //Serial.println(val);
   display.clear();
   display.print(val);
+  display.print(pidDriveBool);
 }
