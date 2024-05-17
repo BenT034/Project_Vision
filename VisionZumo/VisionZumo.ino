@@ -15,6 +15,23 @@ bool pidDriveBool = 0;
 int time =0;
 int time_last    =0;
 
+
+
+
+void find_road()
+{
+ 
+while(val != 1)  //while Nicla doesn't detect 2 lines keep searching 
+{
+
+  motors.setSpeeds(50,-50);
+
+}
+  
+}
+
+
+
 // Functie voor het rijden met PID controller
 void pidDrive()
 {
@@ -43,31 +60,7 @@ void setup()
   display.print(F("Press A"));
   display.clear();
   
-  //Voor het kalibreren van de lijnen, maar werkt nog niet
-  motors.setSpeeds(100,-100);
-  delay(300);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
-  delay(1000);
-  motors.setSpeeds(-100,100);
-  delay(600);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
-  delay(1000);
-  motors.setSpeeds(100,-100);
-  delay(300);
-  motors.setSpeeds(0,0);
-  do
-  sended = loopFunction();
-  while (!sended);
-  sended = 0;
-  pidDriveBool = 1;
+   find_road();
 }
 
 //Reading 0 means a 1 from the nicla
