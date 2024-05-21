@@ -7,11 +7,10 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.HVGA)
 sensor.skip_frames(time = 2000)
 sensor.set_vflip(True)
-#sensor.set_windowing((480, 168))
+sensor.set_windowing((400,200))
 #sensor.ioctl(sensor.IOCTL_SET_FOV_WIDE, True)
 #sensor.set_hflip(True)
 clock = time.clock()
-
 output = 0
 output2 = 0
 lastoutput = 0
@@ -32,29 +31,20 @@ try:
 except Exception as e:
     raise Exception(e)
 
-colors = [ # Add more colors if you are detecting more than 7 types of classes at once.
-    (255,   0,   0),
-    (  0, 255,   0),
-    (255, 255,   0),
-    (  0,   0, 255),
-    (255,   0, 255),
-    (  0, 255, 255),
-    (255, 255, 255),
-]
-
 
 def cnn(img):
     for i, detection_list in enumerate(net.detect(img, thresholds=[(math.ceil(min_confidence * 255), 255)])):
         if (i == 0): continue # background class
         if (len(detection_list) == 0): continue # no detections for this class?
-
         print("********** %s **********" % labels[i])
-        for d in detection_list:
-            [x, y, w, h] = d.rect()
-            center_x = math.floor(x + (w / 2))
-            center_y = math.floor(y + (h / 2))
-            print('x %d\ty %d' % (center_x, center_y))
-            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
+        send_data(i, 1)
+
+#        for d in detection_list:
+#            [x, y, w, h] = d.rect()
+#            center_x = math.floor(x + (w / 2))
+#            center_y = math.floor(y + (h / 2))
+#            print('x %d\ty %d' % (center_x, center_y))
+#            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
 
 
 def send_data(var, pidbool):
@@ -81,6 +71,8 @@ def edge(img):
     lost = 0
     bottom_row_pixels = []
     middle_row_pixels = []
+    y_row_pixels = []
+
     global output
     global lastoutput
 
@@ -91,9 +83,14 @@ def edge(img):
             bottom_row_pixels.append(x)
 
     for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 127)
+        pixel_val = img.get_pixel(x, 80)
         if pixel_val == 1:
             middle_row_pixels.append(x)
+
+    for y in range(img.height()):
+        pixel_val = img.get_pixel(100, y)
+        if pixel_val == 1:
+            y_row_pixels.append(y)
 
     if len(bottom_row_pixels) > 0:
         max_difference = 0
@@ -111,7 +108,7 @@ def edge(img):
                 average_pixel_middle = sum(middle_row_pixels) / len(middle_row_pixels)
                 diff_to_middle = average_pixel_bottom - average_pixel_middle
                 if diff_to_middle < 0:
-                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + 240) / 2
+                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + 400) / 2
                 else:
                     output = bottom_row_pixels[0] / 2
             else:
@@ -120,14 +117,14 @@ def edge(img):
             output = (bottom_row_pixels[max_difference_index] + bottom_row_pixels[max_difference_index + 1]) / 2
     else:
 
-        if len(middle_row_pixels) == 0:
+        if len(middle_row_pixels) == 0 and len(y_row_pixels) == 0:
             lost = 1
         else:
             output = lastoutput
 
     print("output:", output)
     if lost:
-        send_data(5, 1)
+        send_data(8, 1)
     else:
         send_data(output,0)
     lastoutput = output
@@ -135,13 +132,12 @@ def edge(img):
 while True:
     clock.tick()
     img = sensor.snapshot()
-    img.crop(roi=(0, 0, 480, 130), copy=False)
-
-    cnn()
+    #cnn(img)
+    img.crop(roi=(0, 0, 400, 130), copy=False)
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
-    img.binary([(0, 50)], to_bitmap=True)
+    img.binary([(0, 100)], to_bitmap=True)
     kernel = 6
     print(clock.fps())
     edge(img)
