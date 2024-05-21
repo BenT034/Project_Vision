@@ -37,7 +37,7 @@ void pidDrive()
   time_last = millis();
 }
 
- 
+
 void readByte();
 void setup()
 {
@@ -48,7 +48,7 @@ void setup()
   display.print(F("Press A"));
   display.clear();
   pidDriveBool = 1;
-  
+
 }
 //Reading 0 means a 1 from the nicla
 void loop() {
@@ -93,9 +93,11 @@ bool loopFunction()
           motors.setSpeeds(60,60);
           delay(500);
           break;
+
         case 3:
           display.clear();
           display.print("green");
+
           break;
         case 4:
           display.clear();
@@ -146,6 +148,7 @@ bool loopFunction()
           delay(1700);
           motors.setSpeeds(0,0);
           break;
+
       }
     }
   }
@@ -192,3 +195,4 @@ void readByte()
   display.print(val);
   display.print(pidDriveBool);
 }
+ 
