@@ -1,4 +1,4 @@
-import sensor, image, time
+import sensor, image, time, tf, math, uos, gc, os
 from machine import Pin
 from machine import LED
 
@@ -7,54 +7,55 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.HVGA)
 sensor.skip_frames(time = 2000)
 sensor.set_vflip(True)
+#sensor.set_windowing((480, 168))
 #sensor.ioctl(sensor.IOCTL_SET_FOV_WIDE, True)
 #sensor.set_hflip(True)
 clock = time.clock()
 
 output = 0
+output2 = 0
 lastoutput = 0
+lost = 0
 
 period = 5000
 
 fromZumo = Pin("PA10", Pin.IN)
 toZumo = Pin("PA9", Pin.OUT_PP)
 
-def process_image(img):
-    # img = sensor.snapshot()
-    img.crop(roi=(0, 200, 480, 240), copy=False)
-    # img.crop(roi = (0, 0, 480,40 ), copy=False)
+net = None
+labels = None
+min_confidence = 0.8
 
-    img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
-    # img.median(1)
-    blurred_img = img.blur(4)
+try:
+    # Load built in model
+    labels, net = tf.load_builtin_model('trained')
+except Exception as e:
+    raise Exception(e)
 
-    # Convert to binary
-    blurred_img.binary([(0, 50), (254, 255), (254, 255)], to_bitmap=True)
+colors = [ # Add more colors if you are detecting more than 7 types of classes at once.
+    (255,   0,   0),
+    (  0, 255,   0),
+    (255, 255,   0),
+    (  0,   0, 255),
+    (255,   0, 255),
+    (  0, 255, 255),
+    (255, 255, 255),
+]
 
-    # Invert image
-    # img.invert()
 
-    lines = blurred_img.find_lines(threshold=8000, theta_margin=20, rho_margin=20)
-    blurred_img.to_rgb565(blurred_img)
-    for line in lines:
-        blurred_img.draw_line(line.line(), color=(255, 156, 0), thickness=5)
+def cnn(img):
+    for i, detection_list in enumerate(net.detect(img, thresholds=[(math.ceil(min_confidence * 255), 255)])):
+        if (i == 0): continue # background class
+        if (len(detection_list) == 0): continue # no detections for this class?
 
-    num_lines = len(lines)
+        print("********** %s **********" % labels[i])
+        for d in detection_list:
+            [x, y, w, h] = d.rect()
+            center_x = math.floor(x + (w / 2))
+            center_y = math.floor(y + (h / 2))
+            print('x %d\ty %d' % (center_x, center_y))
+            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
 
-    print(num_lines)
-    print(clock.fps())
-
-    threshold = [(1, 1)]
-
-    if num_lines == 1:
-        top = None
-        bottom = None
-        for x in range(img.width()):
-            if img.get_pixel(x, 110) == 1:
-                top = x
-                break
-
-    return blurred_img
 
 def send_data(var, pidbool):
     toZumo.value(1)  # Ask zumo
@@ -77,6 +78,7 @@ def send_data(var, pidbool):
     toZumo.value(1)  # Stop sending data
 
 def edge(img):
+    lost = 0
     bottom_row_pixels = []
     middle_row_pixels = []
     global output
@@ -84,7 +86,7 @@ def edge(img):
 
     # Itereer door elke pixel in de onderste rij en sla de pixelwaarden op
     for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 30)  # 230
+        pixel_val = img.get_pixel(x, 127)  # 230
         if pixel_val == 1:
             bottom_row_pixels.append(x)
 
@@ -117,16 +119,26 @@ def edge(img):
         else:
             output = (bottom_row_pixels[max_difference_index] + bottom_row_pixels[max_difference_index + 1]) / 2
     else:
-        output = lastoutput
+
+        if len(middle_row_pixels) == 0:
+            lost = 1
+        else:
+            output = lastoutput
 
     print("output:", output)
-    send_data(output, 0)
+    if lost:
+        send_data(5, 1)
+    else:
+        send_data(output,0)
     lastoutput = output
 
 while True:
     clock.tick()
     img = sensor.snapshot()
-    img.crop(roi=(0, 200, 480, 240), copy=False)
+
+    cnn()
+
+    img.crop(roi=(0, 190, 480, 240), copy=False)
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
