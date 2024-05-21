@@ -86,12 +86,12 @@ def edge(img):
 
     # Itereer door elke pixel in de onderste rij en sla de pixelwaarden op
     for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 127)  # 230
+        pixel_val = img.get_pixel(x, 1)  # 230
         if pixel_val == 1:
             bottom_row_pixels.append(x)
 
     for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 1)
+        pixel_val = img.get_pixel(x, 127)
         if pixel_val == 1:
             middle_row_pixels.append(x)
 
@@ -135,10 +135,9 @@ def edge(img):
 while True:
     clock.tick()
     img = sensor.snapshot()
+    img.crop(roi=(0, 0, 480, 130), copy=False)
 
     cnn()
-
-    img.crop(roi=(0, 190, 480, 240), copy=False)
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
