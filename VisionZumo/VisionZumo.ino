@@ -21,9 +21,9 @@ int baseSpeed = 60; // set base motor speed
 void pidDrive()
 {
   time = millis() - time_last;
-  int error = 157 - val; // calculate error
+  int error = 210 - val; // calculate error
 
-  float P = 0.25 * error; // error correction for P 0.31 GOED
+  float P = 0.21 * error; // error correction for P 0.31 GOED
   I = I + (time * error * 0.000); // 0.00013 GOED
   float D = (20 * ((error - last_error)) / time); // calculate error correction for K 15 GOED
 
@@ -81,8 +81,8 @@ bool loopFunction()
         case 1:                       //if the sign of dead end is seen the robot will turn around
           display.clear();
           display.print("dead end");
-          motors.setSpeeds(-60,60);
-          delay(3000);                 //fine tuning needed for turn around delay
+          motors.setSpeeds(-80,80);
+          delay(2300);                 //fine tuning needed for turn around delay
           motors.setSpeeds(0,0);
           break;
         case 2:                       //if a stop sign is detected the robot will stand still for a second and then it continues driving
@@ -102,25 +102,20 @@ bool loopFunction()
         case 4:
           display.clear();
           display.print("orange");
-          break;
-        case 5:
-          display.clear();
-          display.print("red");
-          motors.setSpeeds(0,0);
-          delay(3000);
-          motors.setSpeeds(60,60);
-          delay(500);
-          break; 
-        case 6:                       //if the robot sees it is on a priority road it will speed up
-          display.clear();
-          display.print("priority");
-          baseSpeed = 80;
+          baseSpeed = 110;
           counter = 0;
           break;
-        case 7:                       //the robot sees a sign that it cannot park here but it can stand still so it will move to the right of the road and stand still
+        
+        case 5:                       //if the robot sees it is on a priority road it will speed up
+          display.clear();
+          display.print("priority");
+          baseSpeed = 90;
+          counter = 0;
+          break;
+        case 6:                       //the robot sees a sign that it cannot park here but it can stand still so it will move to the right of the road and stand still
           display.clear();
           display.print("cant park");
-          for(int i = 0; i < 5;i++){  //the loop is used to alter the normal pid drive so the robot moves to the right
+          for(int i = 0; i < 12;i++){  //the loop is used to alter the normal pid drive so the robot moves to the right
             NiclaWantsToSend = false;
           if(digitalRead(fromNicla)==0 && NiclaWantsToSend != true) //If Nicla wants to send data
           {
@@ -132,20 +127,28 @@ bool loopFunction()
           if(NiclaWantsToSend) //bool so that the robot won't drive during setup
           {
             readByte();
-            val = val - 90;           //this line of code cause the error to be 90 smaller so the robot moves to the right
+            val = val - 50;           //this line of code cause the error to be 50 smaller so the robot moves to the right
             digitalWrite(toNicla, LOW);
             if (pidDriveBool)
               pidDrive();
             }
           }
           motors.setSpeeds(0,0);      //the robot stops for half a second and then it will continue driving normally
-          delay(500);
+          delay(4000);
           break;
+        case 7:
+          display.clear();
+          display.print("red");
+          motors.setSpeeds(0,0);
+          delay(3000);
+          motors.setSpeeds(60,60);
+          delay(500);
+          break; 
         case 8:                       //the robot sees a 90 degree turn or a T-junction so it will turn to the right
           motors.setSpeeds(60, 60);
           delay(850);
-          motors.setSpeeds(60,-60);
-          delay(1700);
+          motors.setSpeeds(100,-100);
+          delay(800);
           motors.setSpeeds(0,0);
           break;
 
