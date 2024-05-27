@@ -8,14 +8,16 @@ sensor.set_framesize(sensor.HVGA)
 sensor.skip_frames(time = 2000)
 sensor.set_vflip(True)
 sensor.set_windowing((480,200))
-#sensor.ioctl(sensor.IOCTL_SET_FOV_WIDE, True)
-#sensor.set_hflip(True)
+
 clock = time.clock()
 output = 0
-output2 = 0
 lastoutput = 0
-lost = 0
 
+bottom_row_pixels = []
+middle_row_pixels = []
+y_row_pixels = []
+
+# Period in ms
 period = 5000
 
 fromZumo = Pin("PA10", Pin.IN)
@@ -31,7 +33,49 @@ try:
 except Exception as e:
     raise Exception(e)
 
+# Get image pixels for certain lines for algorithm
+def get_image_pixels(img):
+    global bottom_row_pixels, middle_row_pixels, y_row_pixels
 
+    # Itereer door elke pixel in de onderste rij (rij 127)
+    for x in range(img.width()):
+        pixel_val = img.get_pixel(x, 1)
+        if pixel_val == 1:
+            bottom_row_pixels.append(x)
+
+    # Itereer door elke pixel in de middelste rij (rij 80)
+    for x in range(img.width()):
+        pixel_val = img.get_pixel(x, 60)
+        if pixel_val == 1:
+            middle_row_pixels.append(x)
+
+    # Itereer door elke pixel in de kolom (kolom 100)
+    for y in range(img.height()):
+        pixel_val = img.get_pixel(100, y)
+        if pixel_val == 1:
+            y_row_pixels.append(y)
+
+# Some image processing for getting line in white
+def process_image(img):
+    # Crop the image to the region of interest
+    img.crop(roi=(0, 0, 480, 130), copy=False)
+
+    # Adjust the gamma, contrast, and brightness
+    img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
+
+    # Apply a median filter with a kernel size of 4
+    img.median(4)
+
+    # Convert the image to grayscale
+    img.to_grayscale()
+
+    # Apply binary thresholding and convert to bitmap
+    img.binary([(0, 100)], to_bitmap=True)
+
+    # Return the processed image
+    return img
+
+# CNN made with edge impulse to detect traffic lights and traffic signs
 def cnn(img):
     for i, detection_list in enumerate(net.detect(img, thresholds=[(math.ceil(min_confidence * 255), 255)])):
         if (i == 0): continue # background class
@@ -39,14 +83,8 @@ def cnn(img):
         print("********** %s **********" % labels[i])
         send_data(i, 1)
 
-#        for d in detection_list:
-#            [x, y, w, h] = d.rect()
-#            center_x = math.floor(x + (w / 2))
-#            center_y = math.floor(y + (h / 2))
-#            print('x %d\ty %d' % (center_x, center_y))
-#            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
 
-
+# Function to send data to Zumo
 def send_data(var, pidbool):
     toZumo.value(1)  # Ask zumo
 
@@ -67,32 +105,18 @@ def send_data(var, pidbool):
     time.sleep_us(period)
     toZumo.value(1)  # Stop sending data
 
-def edge(img):
+# Algorithm for line detection
+def binarize_middle(img):
     lost = 0
+    global bottom_row_pixels, middle_row_pixels, y_row_pixels
+    global output
+    global lastoutput
+
     bottom_row_pixels = []
     middle_row_pixels = []
     y_row_pixels = []
 
-    global output
-    global lastoutput
-
-    # Itereer door elke pixel in de onderste rij en sla de pixelwaarden op
-    for x in range(img.width()):
-
-        pixel_val = img.get_pixel(x, 127)  # 230
-
-        if pixel_val == 1:
-            bottom_row_pixels.append(x)
-
-    for x in range(img.width()):
-        pixel_val = img.get_pixel(x, 80)
-        if pixel_val == 1:
-            middle_row_pixels.append(x)
-
-    for y in range(img.height()):
-        pixel_val = img.get_pixel(100, y)
-        if pixel_val == 1:
-            y_row_pixels.append(y)
+    get_image_pixels(img)
 
     if len(bottom_row_pixels) > 0:
         max_difference = 0
@@ -124,22 +148,16 @@ def edge(img):
         else:
             output = lastoutput
 
-    print("output:", output)
     if lost:
         send_data(8, 1)
     else:
         send_data(output,0)
     lastoutput = output
 
+# Infinite loop
 while True:
     clock.tick()
     img = sensor.snapshot()
     cnn(img)
-    img.crop(roi=(0, 0, 480, 130), copy=False)
-    img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
-    img.median(4)
-    img.to_grayscale()
-    img.binary([(0, 100)], to_bitmap=True)
-    kernel = 6
-    print(clock.fps())
-    edge(img)
+    img = process_image(img)
+    binarize_middle(img)
