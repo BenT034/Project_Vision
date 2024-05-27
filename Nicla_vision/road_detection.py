@@ -7,7 +7,7 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.HVGA)
 sensor.skip_frames(time = 2000)
 sensor.set_vflip(True)
-sensor.set_windowing((400,200))
+sensor.set_windowing((480,200))
 #sensor.ioctl(sensor.IOCTL_SET_FOV_WIDE, True)
 #sensor.set_hflip(True)
 clock = time.clock()
@@ -108,7 +108,7 @@ def edge(img):
                 average_pixel_middle = sum(middle_row_pixels) / len(middle_row_pixels)
                 diff_to_middle = average_pixel_bottom - average_pixel_middle
                 if diff_to_middle < 0:
-                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + 400) / 2
+                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + 480) / 2
                 else:
                     output = bottom_row_pixels[0] / 2
             else:
@@ -132,8 +132,8 @@ def edge(img):
 while True:
     clock.tick()
     img = sensor.snapshot()
-    #cnn(img)
-    img.crop(roi=(0, 0, 400, 130), copy=False)
+    cnn(img)
+    img.crop(roi=(0, 0, 480, 130), copy=False)
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
