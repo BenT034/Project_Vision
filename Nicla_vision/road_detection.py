@@ -134,15 +134,8 @@ def edge(img):
 while True:
     clock.tick()
     img = sensor.snapshot()
-<<<<<<< HEAD
     cnn(img)
     img.crop(roi=(0, 0, 480, 130), copy=False)
-=======
-
-    #cnn(img)
-    img.crop(roi=(0, 0, 400, 130), copy=False)
-
->>>>>>> 68b968aaa7870831b24a0a874c0bd353682c69ab
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
     img.median(4)
     img.to_grayscale()
