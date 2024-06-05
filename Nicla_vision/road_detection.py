@@ -17,8 +17,12 @@ bottom_row_pixels = []
 middle_row_pixels = []
 y_row_pixels = []
 
-# Period in ms
-period = 5000
+# Period in us
+PERIOD = 5000
+
+# Screenwidth in pixels
+SCREENWIDTH = 480
+
 
 fromZumo = Pin("PA10", Pin.IN)
 toZumo = Pin("PA9", Pin.OUT_PP)
@@ -37,13 +41,13 @@ except Exception as e:
 def get_image_pixels(img):
     global bottom_row_pixels, middle_row_pixels, y_row_pixels
 
-    # Itereer door elke pixel in de onderste rij (rij 127)
+    # Itereer door elke pixel in de onderste rij (rij 1)
     for x in range(img.width()):
         pixel_val = img.get_pixel(x, 1)
         if pixel_val == 1:
             bottom_row_pixels.append(x)
 
-    # Itereer door elke pixel in de middelste rij (rij 80)
+    # Itereer door elke pixel in de middelste rij (rij 60)
     for x in range(img.width()):
         pixel_val = img.get_pixel(x, 60)
         if pixel_val == 1:
@@ -58,7 +62,7 @@ def get_image_pixels(img):
 # Some image processing for getting line in white
 def process_image(img):
     # Crop the image to the region of interest
-    img.crop(roi=(0, 0, 480, 130), copy=False)
+    img.crop(roi=(0, 0, SCREENWIDTH, 130), copy=False)
 
     # Adjust the gamma, contrast, and brightness
     img.gamma(gamma=1.0, contrast=1.5, brightness=0.0)
@@ -95,14 +99,14 @@ def send_data(var, pidbool):
     data = int(var)  # Byte of data to send
     toZumo.value(0)  # Start sending data
 
-    time.sleep_us(period)
+    time.sleep_us(PERIOD)
 
     for i in range(9):
         toZumo.value(data & 0x01)  # Send each bit of data
         data >>= 1
-        time.sleep_us(period)
+        time.sleep_us(PERIOD)
     toZumo.value(pidbool)
-    time.sleep_us(period)
+    time.sleep_us(PERIOD)
     toZumo.value(1)  # Stop sending data
 
 # Algorithm for line detection
@@ -134,7 +138,7 @@ def binarize_middle(img):
                 average_pixel_middle = sum(middle_row_pixels) / len(middle_row_pixels)
                 diff_to_middle = average_pixel_bottom - average_pixel_middle
                 if diff_to_middle < 0:
-                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + 480) / 2
+                    output = (bottom_row_pixels[len(bottom_row_pixels) - 1] + SCREENWIDTH) / 2
                 else:
                     output = bottom_row_pixels[0] / 2
             else:
